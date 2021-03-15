@@ -160,6 +160,22 @@ export class FieldElement extends BaseElement {
             .value-input {
                 border: dashed 1px var(--color-shade-2);
             }
+            
+            .value-strong {
+                border: solid 2px var(--validate-strong);
+            }
+                        
+            .value-good {
+                border: solid 2px var(--validate-good);
+            }
+            
+            .value-okay {
+               border: solid 2px var(--validate-okay);
+            }
+            
+            .value-weak {   
+                border: solid 2px var(--validate-weak);
+            }
 
             .name-input[readonly] {
                 border: none;
@@ -200,6 +216,66 @@ export class FieldElement extends BaseElement {
         }
     }
 
+    private _getPasswordStrengthClass(): [string, string[]] {
+        if (!this.value) {
+            return ["value-input", []];
+        }
+
+        let strength = 0;
+        const missing = [];
+
+        // check password length
+        if (this.value.length > 15) {
+            strength += 4;
+        } else if (this.value.length > 10) {
+            strength += 2;
+        } else if (this.value.length > 5) {
+            strength += 1;
+        }
+
+        // check for uppercase
+        const containsUppercase = (/[A-Z]/g).test(this.value);
+        if (containsUppercase) {
+            strength += 2;
+        } else {
+            missing.push("Uppercase");
+        }
+
+        // check for lowercase
+        const containsLowercase = (/[a-z]/g).test(this.value);
+        if (containsLowercase) {
+            strength += 2;
+        } else {
+            missing.push("Lowercase");
+        }
+
+        // check for number
+        const containsNumber = (/\d/g).test(this.value);
+        if (containsNumber) {
+            strength += 2;
+        } else {
+            missing.push("Number");
+        }
+
+        // check for special character
+        const containsSpecial = (/[-+_!@#$%^&*.,?;]/g).test(this.value);
+        if (containsSpecial) {
+            strength += 2;
+        } else {
+            missing.push("Special Character");
+        }
+
+        if (strength >= 12) {
+            return ["value-strong", missing];
+        } else if (strength > 8) {
+            return ["value-good", missing];
+        } else if (strength > 6) {
+            return ["value-okay", missing];
+        }
+
+        return ["value-weak", missing];
+    }
+
     private _renderEditValue() {
         switch (this.type) {
             case "note":
@@ -227,17 +303,18 @@ export class FieldElement extends BaseElement {
                     <pl-icon icon="qrcode" class="tap" @click=${() => this.dispatch("get-totp-qr")}></pl-icon>
                 `;
             case "password":
+                const [inputClass, missingList] = this._getPasswordStrengthClass();
                 return html`
                     <pl-input
-                        class="value-input"
-                        .placeholder=${$l("Enter Password")}
+                        class=${inputClass}
+                        .placeholder=${$l("Enter Password $$")}
                         type="text"
                         @input=${() => (this.value = this._valueInput.value)}
                         .value=${this.value}
                     >
                     </pl-input>
                     <pl-icon icon="generate" class="tap" @click=${() => this.dispatch("generate")}></pl-icon>
-                `;
+                    ${missingList.length > 0 ? html`<div>${missingList.join(", ")}</div>` : null}`;
 
             default:
                 let inputType: string;
