@@ -11,6 +11,7 @@ import { PBKDF2Params } from "./crypto";
 import { PBES2Container } from "./container";
 import { RequestProgress } from "./transport";
 import { MFAPurpose, MFAType } from "./mfa";
+import { PasswordBreachResult } from "./password-breach-result";
 
 /**
  * Api parameters for creating a new Account to be used with [[API.createAccount]].
@@ -230,6 +231,19 @@ export class GetInviteParams extends Serializable {
     id: InviteID = "";
 
     constructor(props?: Partial<GetInviteParams>) {
+        super();
+        props && Object.assign(this, props);
+    }
+}
+
+/**
+ * TODO
+ */
+export class GetPasswordBreachParams extends Serializable {
+    /** The password hash prefix */
+    sha1Hash: string = "";
+
+    constructor(props?: Partial<GetPasswordBreachParams>) {
         super();
         props && Object.assign(this, props);
     }
@@ -533,6 +547,18 @@ export class API {
      */
     @Handler(Invite, undefined)
     acceptInvite(_invite: Invite): PromiseWithProgress<void> {
+        throw "Not implemented";
+    }
+
+    /**
+     * TODO
+     *
+     * @authentication_required
+     *
+     * TODO
+     */
+    @Handler(GetPasswordBreachParams, PasswordBreachResult)
+    getPasswordBreachStatus(_params: GetPasswordBreachParams): Promise<PasswordBreachResult> {
         throw "Not implemented";
     }
 

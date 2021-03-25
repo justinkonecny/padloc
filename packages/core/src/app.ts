@@ -28,7 +28,7 @@ import {
     RecoverAccountParams,
     GetInviteParams,
     GetAttachmentParams,
-    DeleteAttachmentParams
+    DeleteAttachmentParams, GetPasswordBreachParams
 } from "./api";
 import { Client } from "./client";
 import { Sender } from "./transport";
@@ -1788,6 +1788,17 @@ export class App {
     getItemsQuota(vault: Vault = this.mainVault!) {
         return this.isMainVault(vault) && !this.orgs.some(org => !org.frozen) ? this.account!.quota.items : -1;
     }
+
+
+    /**
+     * TODO
+     *
+     * @param sha1Hash TODO
+     */
+    async getPasswordBreachStatus(sha1Hash: string) {
+         return this.api.getPasswordBreachStatus(new GetPasswordBreachParams({sha1Hash}));
+    }
+
 
     /**
      * ================

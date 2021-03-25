@@ -8,6 +8,9 @@ import { Textarea } from "./textarea";
 import "./input";
 import "./textarea";
 import "./totp";
+import { app } from "../globals";
+
+const crypto = require('crypto');
 
 @element("pl-field")
 export class FieldElement extends BaseElement {
@@ -22,6 +25,12 @@ export class FieldElement extends BaseElement {
 
     @property()
     type: FieldType = FieldType.Note;
+
+    @property()
+    _passwordBreachCount: number = -1;
+
+    @property()
+    _missingList: string[] = [];
 
     @property()
     private _masked: boolean = false;
@@ -216,13 +225,32 @@ export class FieldElement extends BaseElement {
         }
     }
 
-    private _getPasswordStrengthClass(): [string, string[]] {
+    private async _checkPasswordBreach() {
         if (!this.value) {
-            return ["value-input", []];
+            this._passwordBreachCount = -1;
+            return;
+        }
+
+        const sha1Hash = crypto.createHash("sha1")
+            .update(this.value)
+            .digest("hex");
+
+        try {
+            const response = await app.getPasswordBreachStatus(sha1Hash);
+            this._passwordBreachCount = response.count;
+        } catch (error) {
+            console.error(error);
+            this._passwordBreachCount = -1;
+        }
+    }
+
+    private _getPasswordStrengthClass(): string {
+        this._missingList = [];
+        if (!this.value) {
+            return "value-input";
         }
 
         let strength = 0;
-        const missing = [];
 
         // check password length
         if (this.value.length > 15) {
@@ -238,7 +266,7 @@ export class FieldElement extends BaseElement {
         if (containsUppercase) {
             strength += 2;
         } else {
-            missing.push("Uppercase");
+            this._missingList.push("uppercase letter");
         }
 
         // check for lowercase
@@ -246,7 +274,7 @@ export class FieldElement extends BaseElement {
         if (containsLowercase) {
             strength += 2;
         } else {
-            missing.push("Lowercase");
+            this._missingList.push("lowercase letter");
         }
 
         // check for number
@@ -254,7 +282,7 @@ export class FieldElement extends BaseElement {
         if (containsNumber) {
             strength += 2;
         } else {
-            missing.push("Number");
+            this._missingList.push("number");
         }
 
         // check for special character
@@ -262,18 +290,42 @@ export class FieldElement extends BaseElement {
         if (containsSpecial) {
             strength += 2;
         } else {
-            missing.push("Special Character");
+            this._missingList.push("special character");
         }
 
         if (strength >= 12) {
-            return ["value-strong", missing];
+            return "value-input value-strong";
         } else if (strength > 8) {
-            return ["value-good", missing];
+            return "value-input value-good";
         } else if (strength > 6) {
-            return ["value-okay", missing];
+            return "value-input value-okay";
         }
 
-        return ["value-weak", missing];
+        return "value-input value-weak";
+    }
+
+    private _renderFieldHelpText() {
+        switch(this.type) {
+            case "password":
+                const missingStr = this._missingList.length > 0
+                    ? html`<p>Add the following attribute(s) to strengthen your password: <b>${this._missingList.join(", ")}</b></p>`
+                    : null;
+
+                if (this._passwordBreachCount > 0) {
+                    return html`
+                        <p>This password has been detected in <b>${this._passwordBreachCount}</b> breaches! It is recommended to change your password.</p>
+                        ${missingStr}`;
+                } else if (this._passwordBreachCount === 0) {
+                    return html`
+                        <p>This password has not been detected in any breaches!</p>
+                        ${missingStr}`;
+                } else {
+                    return missingStr;
+                }
+
+            default:
+                return null;
+        }
     }
 
     private _renderEditValue() {
@@ -303,18 +355,18 @@ export class FieldElement extends BaseElement {
                     <pl-icon icon="qrcode" class="tap" @click=${() => this.dispatch("get-totp-qr")}></pl-icon>
                 `;
             case "password":
-                const [inputClass, missingList] = this._getPasswordStrengthClass();
+                const inputClass = this._getPasswordStrengthClass();
                 return html`
                     <pl-input
                         class=${inputClass}
-                        .placeholder=${$l("Enter Password $$")}
+                        .placeholder=${$l("Enter Password")}
                         type="text"
                         @input=${() => (this.value = this._valueInput.value)}
+                        @blur=${this._checkPasswordBreach}
                         .value=${this.value}
                     >
                     </pl-input>
-                    <pl-icon icon="generate" class="tap" @click=${() => this.dispatch("generate")}></pl-icon>
-                    ${missingList.length > 0 ? html`<div>${missingList.join(", ")}</div>` : null}`;
+                    <pl-icon icon="generate" class="tap" @click=${() => this.dispatch("generate")}></pl-icon>`;
 
             default:
                 let inputType: string;
@@ -380,6 +432,8 @@ export class FieldElement extends BaseElement {
                 <div class="field-value">
                     ${this.editing ? this._renderEditValue() : this._renderDisplayValue()}
                 </div>
+
+                ${this._renderFieldHelpText()}
             </div>
 
             <div class="field-buttons right" ?hidden=${this.editing}>
