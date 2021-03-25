@@ -458,6 +458,26 @@ export class ItemDialog extends Dialog<string, void> {
     }
 
     save() {
+        // check for Username and URL fields
+        let usernameField;
+        let urlField;
+        for (const field of this._fields) {
+            const type = field.type;
+            if (!usernameField && type === "username") {
+                usernameField = field;
+            }
+            else if (!urlField && type === "url") {
+                urlField = field;
+            }
+        }
+
+        if (usernameField && urlField) {
+            console.log(usernameField.value);
+            console.log(urlField.value);
+            // todo: check these values against HaveIBeenPwned
+        }
+
+
         app.updateItem(this._item!, {
             name: this._nameInput.value,
             fields: this._getFields(),
