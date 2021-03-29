@@ -14,7 +14,7 @@ import {
     GetInviteParams,
     GetAttachmentParams,
     DeleteAttachmentParams,
-    GetLegacyDataParams, GetPasswordBreachParams
+    GetLegacyDataParams, GetPasswordBreachParams, GetEmailBreachParams
 } from "./api";
 import { Storage, VoidStorage } from "./storage";
 import { Attachment, AttachmentStorage } from "./attachment";
@@ -39,6 +39,7 @@ import { Logger } from "./log";
 import { PBES2Container } from "./container";
 import { PasswordBreachResult } from "./password-breach-result";
 import { AxiosResponse } from "axios";
+import { EmailBreachResult } from "./email-breach-result";
 
 const axios = require("axios");
 
@@ -1198,6 +1199,38 @@ export class Controller extends API {
                     const count = (matches && matches.length > 1) ? matches[1] : 0;
                     const result = new PasswordBreachResult({count});
                     resolve(result);
+                })
+                .catch((error: any) => {
+                    console.error(error);
+                    reject(error);
+                });
+        });
+    }
+
+    async getEmailBreachStatus({ emailAddress, url }: GetEmailBreachParams) {
+        this._requireAuth();
+
+        this.log("emailBreachStatus.get", { emailAddress, url });
+
+        return new Promise<EmailBreachResult>((resolve, reject) => {
+            const haveIBeenPwnedUrl = `https://haveibeenpwned.com/api/v3/breachedaccount/${emailAddress}?truncateResponse=false`;
+
+            axios.get(haveIBeenPwnedUrl, {headers: {
+                    "hibp-api-key": process.env.PL_HIBP_API_KEY
+                }})
+                .then((response: AxiosResponse) => {
+                    const breachList = response?.data;
+                    let description = null;
+
+                    for (const breach of breachList) {
+                        const domain = breach["Domain"].toLowerCase();
+                        if (url.includes(domain)) {
+                            description = breach.Description.replace(/(<([^>]+)>)/gi, "");
+                            break;
+                        }
+                    }
+
+                    resolve(new EmailBreachResult({description}));
                 })
                 .catch((error: any) => {
                     console.error(error);

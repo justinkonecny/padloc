@@ -28,7 +28,7 @@ import {
     RecoverAccountParams,
     GetInviteParams,
     GetAttachmentParams,
-    DeleteAttachmentParams, GetPasswordBreachParams
+    DeleteAttachmentParams, GetPasswordBreachParams, GetEmailBreachParams
 } from "./api";
 import { Client } from "./client";
 import { Sender } from "./transport";
@@ -1799,6 +1799,15 @@ export class App {
          return this.api.getPasswordBreachStatus(new GetPasswordBreachParams({sha1Hash}));
     }
 
+    /**
+     * TODO
+     *
+     * @param emailAddress
+     * @param url
+     */
+    async getEmailBreachStatus(emailAddress: string, url: string) {
+        return this.api.getEmailBreachStatus(new GetEmailBreachParams({emailAddress, url}));
+    }
 
     /**
      * ================

@@ -12,6 +12,7 @@ import { PBES2Container } from "./container";
 import { RequestProgress } from "./transport";
 import { MFAPurpose, MFAType } from "./mfa";
 import { PasswordBreachResult } from "./password-breach-result";
+import { EmailBreachResult } from "./email-breach-result";
 
 /**
  * Api parameters for creating a new Account to be used with [[API.createAccount]].
@@ -249,6 +250,18 @@ export class GetPasswordBreachParams extends Serializable {
     }
 }
 
+/**
+ * TODO
+ */
+export class GetEmailBreachParams extends Serializable {
+    emailAddress: string = "";
+    url: string = "";
+
+    constructor(props?: Partial<GetEmailBreachParams>) {
+        super();
+        props && Object.assign(this, props);
+    }
+}
 /**
  * Parameters for fetching an [[Attachment]]
  */
@@ -561,6 +574,19 @@ export class API {
     getPasswordBreachStatus(_params: GetPasswordBreachParams): Promise<PasswordBreachResult> {
         throw "Not implemented";
     }
+
+    /**
+     * TODO
+     *
+     * @authentication_required
+     *
+     * TODO
+     */
+    @Handler(GetEmailBreachParams, EmailBreachResult)
+    getEmailBreachStatus(_params: GetEmailBreachParams): Promise<EmailBreachResult> {
+        throw "Not implemented";
+    }
+
 
     @Handler(Attachment, String)
     createAttachment(_attachment: Attachment): PromiseWithProgress<AttachmentID> {

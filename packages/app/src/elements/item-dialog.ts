@@ -32,6 +32,12 @@ export class ItemDialog extends Dialog<string, void> {
     @property()
     isNew: boolean = false;
 
+    @property()
+    private _emailBreachResult: string | null = null;
+
+    @property()
+    private _showEmailBreachResult: boolean = false;
+
     get _item() {
         const found = (this.itemId && app.getItem(this.itemId)) || null;
         return found && found.item;
@@ -112,6 +118,8 @@ export class ItemDialog extends Dialog<string, void> {
 
     dismiss() {
         super.dismiss();
+        this._showEmailBreachResult = false;
+        this._emailBreachResult = null;
         router.go("items");
     }
 
@@ -284,6 +292,10 @@ export class ItemDialog extends Dialog<string, void> {
             pl-field.dragover ~ * {
                 transform: translate3d(0, 40px, 0);
             }
+          
+          .email-breach {
+            padding: 4pt;
+          }
 
             @media (max-width: 700px) {
                 .outer {
@@ -303,6 +315,25 @@ export class ItemDialog extends Dialog<string, void> {
             }
         `
     ];
+
+    private _renderEmailBreach() {
+        if (!this._emailBreachResult) {
+            return null;
+        }
+
+        return html`<div class="email-breach">
+            <p><b>Your email has been detected in a known data breach!</b></p>
+            <div>
+                ${this._showEmailBreachResult 
+                        ? this._emailBreachResult 
+                        : html`<button @click=${this._toggleShowBreachResult}>See more!</button>`}
+            </div>
+        </div>`;
+    }
+
+    private _toggleShowBreachResult() {
+        this._showEmailBreachResult = !this._showEmailBreachResult
+    }
 
     renderContent() {
         if (app.state.locked || !this._item || !this._vault) {
@@ -382,6 +413,8 @@ export class ItemDialog extends Dialog<string, void> {
                         </div>
                     `
                 )}
+                
+                ${this._renderEmailBreach()}
 
                 <div class="actions" ?hidden=${!this._editing}>
                     <button class="icon tap" @click=${() => this._addField()}>
@@ -457,7 +490,9 @@ export class ItemDialog extends Dialog<string, void> {
         this.isNew = false;
     }
 
-    save() {
+    private async _checkEmailBreach() {
+        this._emailBreachResult = null;
+
         // check for Username and URL fields
         let usernameField;
         let urlField;
@@ -471,12 +506,37 @@ export class ItemDialog extends Dialog<string, void> {
             }
         }
 
-        if (usernameField && urlField) {
-            console.log(usernameField.value);
-            console.log(urlField.value);
-            // todo: check these values against HaveIBeenPwned
+        if (!usernameField?.value || !urlField?.value) {
+            return;
         }
 
+        const usernameValue = usernameField.value;
+        const urlValue = urlField.value.toLowerCase();
+
+        // check if username is an email
+        const emailRegex = new RegExp("(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|\"" +
+            "(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\\\[\x01-\x09\x0b\x0c\x0e-\x7f])*\")@" +
+            "(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\\[(?:(?:(2(5[0-5]|[0-4][0-9])" +
+            "|1[0-9][0-9]|[1-9]?[0-9]))\\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(" +
+            "?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\\])")
+
+        if (!emailRegex.test(usernameValue)) {
+            return;
+        }
+
+        try {
+            const result = await app.getEmailBreachStatus(usernameValue, urlValue);
+            this._emailBreachResult = result?.description;
+        }
+        catch (error) {
+            console.error(error);
+        }
+    }
+
+    save() {
+        if (!this._emailBreachResult) {
+            this._checkEmailBreach();
+        }
 
         app.updateItem(this._item!, {
             name: this._nameInput.value,
