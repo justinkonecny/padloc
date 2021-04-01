@@ -52,6 +52,9 @@ export class ItemDialog extends Dialog<string, void> {
     private _editing: boolean = false;
 
     @property()
+    _reuseCount: number = 0;
+
+    @property()
     private _fields: Field[] = [];
 
     @query("#nameInput")
@@ -120,6 +123,7 @@ export class ItemDialog extends Dialog<string, void> {
         super.dismiss();
         this._showEmailBreachResult = false;
         this._emailBreachResult = null;
+        this._reuseCount = 0;
         router.go("items");
     }
 
@@ -293,8 +297,8 @@ export class ItemDialog extends Dialog<string, void> {
                 transform: translate3d(0, 40px, 0);
             }
           
-          .email-breach {
-            padding: 4pt;
+          .breach-help-text {
+            margin: 12px;
           }
 
             @media (max-width: 700px) {
@@ -321,13 +325,26 @@ export class ItemDialog extends Dialog<string, void> {
             return null;
         }
 
-        return html`<div class="email-breach">
+        return html`<div class="breach-help-text">
             <p><b>Your email has been detected in a known data breach!</b></p>
             <div>
                 ${this._showEmailBreachResult 
                         ? this._emailBreachResult 
                         : html`<button @click=${this._toggleShowBreachResult}>See more!</button>`}
             </div>
+        </div>`;
+    }
+
+    private _renderPasswordReuse() {
+        if (this._reuseCount == 0) {
+            return null;
+        }
+
+        return html`<div class="breach-help-text">
+            <p>
+                Your password has been reused <b>${this._reuseCount}</b> time(s) within your vault! 
+                It is best to choose a unique password for each account.
+            </p>
         </div>`;
     }
 
@@ -414,6 +431,7 @@ export class ItemDialog extends Dialog<string, void> {
                     `
                 )}
                 
+                ${this._renderPasswordReuse()}
                 ${this._renderEmailBreach()}
 
                 <div class="actions" ?hidden=${!this._editing}>
@@ -533,10 +551,59 @@ export class ItemDialog extends Dialog<string, void> {
         }
     }
 
+    private _checkPasswordReuse() {
+        this._reuseCount = 0;
+
+        // get the ID of the Vault associated with this account
+        const vaultId = app.account?.mainVault.id;
+        if (!vaultId) {
+            return;
+        }
+
+        // get the actual Vault
+        const vault = app.getVault(vaultId);
+        if (!vault) {
+            return;
+        }
+
+        let currPassword: string | null = null;
+        for (const field of this._getFields()) {
+            if (field.type === "password") {
+                currPassword = field.value.toLowerCase();
+                break;
+            }
+        }
+
+        if (!currPassword) {
+            return;
+        }
+
+        // iterate through Vault, looking for matching passwords
+        for (const item of vault.items) {
+
+            // skip Vault item if it's this item
+            if (item.id === this._item?.id) {
+                continue;
+            }
+
+            // otherwise check for matching passwords
+            for (const field of item.fields) {
+                if (field.type === "password") {
+                    if (field.value.toLowerCase() == currPassword) {
+                        this._reuseCount++;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     save() {
         if (!this._emailBreachResult) {
             this._checkEmailBreach();
         }
+
+        this._checkPasswordReuse();
 
         app.updateItem(this._item!, {
             name: this._nameInput.value,
